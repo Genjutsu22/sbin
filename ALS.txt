@@ -1,0 +1,111 @@
+import java.io.IOException;
+import java.util.*;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class ALSFactorization {
+
+    public static class ALSMapper extends Mapper<LongWritable, Text, IntWritable, Text> {
+        @Override
+        public void map(LongWritable key, Text value, Context context)
+                throws IOException, InterruptedException {
+            String[] tokens = value.toString().split(",");
+            int i = Integer.parseInt(tokens[0]);
+            int j = Integer.parseInt(tokens[1]);
+            double r = Double.parseDouble(tokens[2]);
+
+            context.write(new IntWritable(i), new Text(j + ":" + r));
+        }
+    }
+
+    public static class ALSReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
+
+        private static final int K = 10;
+        private static final double LAMBDA = 0.1;
+        private Map<Integer, double[]> V = new HashMap<>();
+        private Random rand = new Random();
+
+        @Override
+        protected void setup(Context context) {
+            for (int j = 0; j < 1000; j++) {
+                double[] vj = new double[K];
+                for (int k = 0; k < K; k++) {
+                    vj[k] = rand.nextDouble();
+                }
+                V.put(j, vj);
+            }
+        }
+
+        @Override
+        public void reduce(IntWritable key, Iterable<Text> values, Context context)
+                throws IOException, InterruptedException {
+            List<Integer> itemList = new ArrayList<>();
+            List<Double> ratingList = new ArrayList<>();
+
+            for (Text val : values) {
+                String[] parts = val.toString().split(":");
+                int j = Integer.parseInt(parts[0]);
+                double r = Double.parseDouble(parts[1]);
+                itemList.add(j);
+                ratingList.add(r);
+            }
+
+            double[][] A = new double[K][K];
+            double[] b = new double[K];
+
+            for (int idx = 0; idx < itemList.size(); idx++) {
+                int j = itemList.get(idx);
+                double r = ratingList.get(idx);
+                double[] vj = V.get(j);
+
+                for (int k = 0; k < K; k++) {
+                    b[k] += r * vj[k];
+                    for (int l = 0; l < K; l++) {
+                        A[k][l] += vj[k] * vj[l];
+                    }
+                }
+            }
+
+            for (int k = 0; k < K; k++) {
+                A[k][k] += LAMBDA;
+            }
+
+
+            double[] ui = solveLinearSystem(A, b);
+
+            StringBuilder uVec = new StringBuilder();
+            for (int k = 0; k < K; k++) {
+                uVec.append(ui[k]).append(",");
+            }
+
+            context.write(key, new Text("U:" + uVec.toString()));
+        }
+
+        private double[] solveLinearSystem(double[][] A, double[] b) {
+
+            return Arrays.copyOf(b, b.length);
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Configuration conf = new Configuration();
+        Job job = Job.getInstance(conf, "ALS Factorization");
+        job.setJarByClass(ALSFactorization.class);
+        job.setMapperClass(ALSMapper.class);
+        job.setReducerClass(ALSReducer.class);
+        job.setMapOutputKeyClass(IntWritable.class);
+        job.setMapOutputValueClass(Text.class);
+        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
+
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}

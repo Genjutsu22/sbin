@@ -8,7 +8,7 @@ import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-public class ALSFactorization {
+public class ALS {
 
     public static class ALSMapper extends Mapper<LongWritable, Text, IntWritable, Text> {
         @Override
@@ -94,8 +94,8 @@ public class ALSFactorization {
 
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
-        Job job = Job.getInstance(conf, "ALS Factorization");
-        job.setJarByClass(ALSFactorization.class);
+        Job job = Job.getInstance(conf, "ALS");
+        job.setJarByClass(ALS.class);
         job.setMapperClass(ALSMapper.class);
         job.setReducerClass(ALSReducer.class);
         job.setMapOutputKeyClass(IntWritable.class);

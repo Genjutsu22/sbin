@@ -11,14 +11,12 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 public class ALS {
 
     public static class ALSMapper extends Mapper<LongWritable, Text, IntWritable, Text> {
-        @Override
         public void map(LongWritable key, Text value, Context context)
                 throws IOException, InterruptedException {
             String[] tokens = value.toString().split(",");
             int i = Integer.parseInt(tokens[0]);
             int j = Integer.parseInt(tokens[1]);
             double r = Double.parseDouble(tokens[2]);
-
             context.write(new IntWritable(i), new Text(j + ":" + r));
         }
     }
@@ -30,7 +28,6 @@ public class ALS {
         private Map<Integer, double[]> V = new HashMap<>();
         private Random rand = new Random();
 
-        @Override
         protected void setup(Context context) {
             for (int j = 0; j < 1000; j++) {
                 double[] vj = new double[K];
@@ -41,7 +38,6 @@ public class ALS {
             }
         }
 
-        @Override
         public void reduce(IntWritable key, Iterable<Text> values, Context context)
                 throws IOException, InterruptedException {
             List<Integer> itemList = new ArrayList<>();
@@ -49,10 +45,8 @@ public class ALS {
 
             for (Text val : values) {
                 String[] parts = val.toString().split(":");
-                int j = Integer.parseInt(parts[0]);
-                double r = Double.parseDouble(parts[1]);
-                itemList.add(j);
-                ratingList.add(r);
+                itemList.add(Integer.parseInt(parts[0]));
+                ratingList.add(Double.parseDouble(parts[1]));
             }
 
             double[][] A = new double[K][K];
@@ -75,19 +69,27 @@ public class ALS {
                 A[k][k] += LAMBDA;
             }
 
-
             double[] ui = solveLinearSystem(A, b);
-
             StringBuilder uVec = new StringBuilder();
             for (int k = 0; k < K; k++) {
                 uVec.append(ui[k]).append(",");
             }
-
             context.write(key, new Text("U:" + uVec.toString()));
         }
 
-        private double[] solveLinearSystem(double[][] A, double[] b) {
+        protected void cleanup(Context context) throws IOException, InterruptedException {
+            for (Map.Entry<Integer, double[]> entry : V.entrySet()) {
+                int j = entry.getKey();
+                double[] vj = entry.getValue();
+                StringBuilder vVec = new StringBuilder();
+                for (int k = 0; k < K; k++) {
+                    vVec.append(vj[k]).append(",");
+                }
+                context.write(new IntWritable(j), new Text("V:" + vVec.toString()));
+            }
+        }
 
+        private double[] solveLinearSystem(double[][] A, double[] b) {
             return Arrays.copyOf(b, b.length);
         }
     }
@@ -102,10 +104,8 @@ public class ALS {
         job.setMapOutputValueClass(Text.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(Text.class);
-
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
-
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 }

@@ -1,0 +1,31 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Random;
+
+public class ALSInputGenerator {
+
+    public static void main(String[] args) {
+        String outputFile = "als_input.txt";
+
+        int numUsers = 100;     
+        int numItems = 1000;    
+        int numRatings = 5000;   
+
+        Random rand = new Random();
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+            for (int i = 0; i < numRatings; i++) {
+                int userId = rand.nextInt(numUsers);       
+                int itemId = rand.nextInt(numItems);       
+                double rating = 1 + rand.nextDouble() * 4; 
+
+                writer.write(userId + "," + itemId + "," + String.format("%.2f", rating));
+                writer.newLine();
+            }
+            System.out.println("ALS input file generated successfully: " + outputFile);
+        } catch (IOException e) {
+            System.err.println("Error writing file: " + e.getMessage());
+        }
+    }
+}

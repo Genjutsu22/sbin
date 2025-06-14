@@ -16,3 +16,7 @@ echo -e "0,1,5.0\n0,2,3.0\n1,1,4.0\n1,2,1.0" > ratings.txt
 hdfs dfs -mkdir -p /user/hadoop/input
 hdfs dfs -put -f ratings.txt /user/hadoop/input/
 hadoop jar als.jar ALS /user/hadoop/input /user/hadoop/output
+
+
+javac ALSInputGenerator.java 
+java ALSInputGenerator
